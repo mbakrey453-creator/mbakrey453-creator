@@ -15,17 +15,18 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install Playwright Chromium
         run: |
           npm init -y > /dev/null 2>&1
-          npm install playwright@1.47.2 --no-audit --no-fund
+          npm install playwright --no-audit --no-fund
           npx playwright install --with-deps chromium
 
       - name: Fetch TryHackMe stats
