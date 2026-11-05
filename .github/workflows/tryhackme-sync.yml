@@ -1,0 +1,46 @@
+name: TryHackMe sync
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: thm-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Playwright Chromium
+        run: |
+          npm init -y > /dev/null 2>&1
+          npm install playwright@1.47.2 --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Fetch TryHackMe stats
+        env:
+          THM_USERNAME: mbakrey452
+        run: node .github/scripts/thm-sync.mjs
+
+      - name: Commit README if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet README.md; then
+            echo "No changes"
+          else
+            git add README.md
+            git commit -m "chore: sync TryHackMe progress"
+            git push
+          fi
