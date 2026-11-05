@@ -8,6 +8,7 @@ Currently working through the **Google Cybersecurity Professional Certificate** 
 
 - **Secure File Encryptor & Shredder** — modular AES-256 file encryption and secure deletion (`crypto_engine.py`, `shred_engine.py`), with GUI (Tkinter) and CLI interfaces plus unit tests.
 - **Python Security Scripts** — socket-based port scanner for identifying open ports on target hosts.
+- **Intrusion Detection Log Analyzer** — Python web GUI that parses mixed SSH/Apache/firewall logs with four hand-written data structures (linked queue, linked list, stack, circular buffer) and simulates IP blocks when a source floods failed logins in a window of the last N events. [`log-analyzer`](https://github.com/mbakrey453-creator/log-analyzer)
 - **TryHackMe write-ups** — room notes with step-by-step answers and screenshots, including dirb and Dirbuster enumeration.
 
 ## TryHackMe
