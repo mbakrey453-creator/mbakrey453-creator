@@ -1,39 +1,87 @@
 import { chromium } from 'playwright';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 
 const USERNAME = process.env.THM_USERNAME || 'mbakrey452';
 const README = 'README.md';
 const START = '<!-- THM:START -->';
 const END = '<!-- THM:END -->';
 
-const browser = await chromium.launch({
-  args: ['--disable-blink-features=AutomationControlled'],
-});
-
-let payload = null;
-try {
-  const page = await browser.newPage({
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    locale: 'en-US',
-  });
-  await page.goto(`https://tryhackme.com/p/${USERNAME}`, {
-    waitUntil: 'domcontentloaded',
-    timeout: 60000,
-  });
-  await page.waitForTimeout(6000);
-  payload = await page.evaluate(async (username) => {
-    const res = await fetch(`/api/v2/public-profile?username=${username}`, {
-      headers: { accept: 'application/json' },
-    });
-    return res.ok ? res.json() : { error: res.status };
-  }, USERNAME);
-} finally {
-  await browser.close();
+function note(line) {
+  console.log(line);
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, line + '\n');
 }
 
+async function readPublicProfile() {
+  const browser = await chromium.launch({
+    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox'],
+  });
+
+  try {
+    const context = await browser.newContext({
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+      locale: 'en-US',
+      timezoneId: 'Africa/Cairo',
+      viewport: { width: 1366, height: 900 },
+      extraHTTPHeaders: { 'accept-language': 'en-US,en;q=0.9' },
+    });
+    const page = await context.newPage();
+
+    let intercepted = null;
+    page.on('response', async (response) => {
+      if (intercepted || !response.url().includes('/api/v2/public-profile')) return;
+      try {
+        intercepted = await response.json();
+        note(`captured profile API response: HTTP ${response.status()}`);
+      } catch (error) {
+        note(`profile API response was not JSON: ${error.message}`);
+      }
+    });
+
+    const navigation = await page.goto(`https://tryhackme.com/p/${USERNAME}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 90000,
+    });
+    note(
+      `profile page: HTTP ${navigation ? navigation.status() : 'no response'}, title "${await page.title()}"`,
+    );
+
+    const deadline = Date.now() + 60000;
+    while (!intercepted && Date.now() < deadline) {
+      await page.waitForTimeout(5000);
+
+      const probe = await page
+        .evaluate(async (username) => {
+          const response = await fetch(`/api/v2/public-profile?username=${encodeURIComponent(username)}`, {
+            credentials: 'include',
+            headers: { accept: 'application/json' },
+          });
+          return { status: response.status, body: await response.text() };
+        }, USERNAME)
+        .catch((error) => ({ status: 'error', body: error.message }));
+
+      if (probe.status === 200) {
+        try {
+          intercepted = JSON.parse(probe.body);
+          note('direct API request succeeded');
+        } catch {
+          note('direct API answered 200 but the body was not JSON');
+        }
+      } else {
+        note(`direct API attempt: ${probe.status}`);
+      }
+    }
+
+    return intercepted;
+  } finally {
+    await browser.close();
+  }
+}
+
+const payload = await readPublicProfile();
+
 if (!payload || payload.status !== 'success') {
-  console.error('TryHackMe returned no data, leaving README untouched:', JSON.stringify(payload));
+  note('TryHackMe returned no data, leaving README untouched.');
   process.exit(0);
 }
 
@@ -58,4 +106,4 @@ if (readme.includes(START) && readme.includes(END)) {
   readme = `${readme.trimEnd()}\n\n${block}\n`;
 }
 writeFileSync(README, readme);
-console.log(`Synced ${d.username}: ${d.totalPoints} points, ${d.completedRoomsNumber} rooms`);
+note(`Synced ${d.username}: ${d.totalPoints} points, ${d.completedRoomsNumber} rooms, rank ${d.rank}`);
