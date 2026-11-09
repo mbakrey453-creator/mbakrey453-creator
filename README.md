@@ -18,9 +18,9 @@ Currently working through the **Google Cybersecurity Professional Certificate** 
 
 | Points | Rooms completed | Global rank | Current streak | Longest streak | Badges |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 120 | 4 | Top 90% | 0 | 1 | 0 |
+| 120 | 5 | Top 90% | 0 | 1 | 0 |
 
-_Last synced: 2026-11-08 04:44 UTC_
+_Last synced: 2026-11-09 04:56 UTC_
 <!-- THM:END -->
 
 ## Links
